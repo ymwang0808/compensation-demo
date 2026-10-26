@@ -1,0 +1,64 @@
+[
+  {
+    "task_id": "CASE_001",
+    "scenario": "漏专属合同_普通Prompt会犯错",
+    "input": {
+      "customer_id": "CUST_001",
+      "fault_type": "网络中断",
+      "query_time": "2024-05-10"
+    },
+    "mock_data": {
+      "has_exclusive_contract": false,
+      "maintenance_page_1_empty": false,
+      "has_403_error": false
+    },
+    "expected": {
+      "evidence_status": "UNKNOWN",
+      "need_requery": true,
+      "final_decision": "转人工/待定",
+      "reason": "缺少客户专属合同，通用政策不足以支撑结论"
+    }
+  },
+  {
+    "task_id": "CASE_002",
+    "scenario": "分页不完整_需继续翻页",
+    "input": {
+      "customer_id": "CUST_002",
+      "fault_type": "设备宕机",
+      "query_time": "2024-05-11"
+    },
+    "mock_data": {
+      "has_exclusive_contract": true,
+      "maintenance_page_1_empty": true,
+      "maintenance_page_2_has_exception": true,
+      "has_403_error": false
+    },
+    "expected": {
+      "evidence_status": "REFUTE",
+      "need_requery": true,
+      "final_decision": "不补偿",
+      "reason": "第一页为空不能代表无例外，翻页后发现维护例外条款"
+    }
+  },
+  {
+    "task_id": "CASE_003",
+    "scenario": "证据冲突_需转人工",
+    "input": {
+      "customer_id": "CUST_003",
+      "fault_type": "数据丢失",
+      "query_time": "2024-05-12"
+    },
+    "mock_data": {
+      "has_exclusive_contract": true,
+      "maintenance_page_1_empty": false,
+      "has_403_error": false,
+      "evidence_conflict": true
+    },
+    "expected": {
+      "evidence_status": "CONFLICT",
+      "need_requery": false,
+      "final_decision": "转人工",
+      "reason": "存在无法自动消解的有效相反证据"
+    }
+  }
+]

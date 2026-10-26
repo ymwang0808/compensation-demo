@@ -1,0 +1,194 @@
+[
+  {
+    "task_id": "A-001",
+    "scenario_type": "正常（证据齐全）",
+    "input_scenario": "客户tier=VIP, plan=Enterprise_Pro, 故障时长=40分钟, 故障原因=系统侧硬件故障(非免责), 查询时间2026-09-01",
+    "applicable_rule": "RULE-001 (priority=1, 满30分钟, 例外 CLIENT_CONFIG_ERROR/FORCE_MAJEURE)",
+    "injected_fault": "无（自然正例）",
+    "fault_class": "自然",
+    "expected_evidence_list": {
+      "CRM_CONTRACT_DB": "VERIFIED",
+      "MONITORING_SYSTEM": "VERIFIED",
+      "MAINTENANCE_CALENDAR": "VERIFIED(pagination_complete=true, 故障时段无计划维护)"
+    },
+    "four_state": "SUPPORT",
+    "expected_action": "无需补查（关键证据已齐全）",
+    "final_decision": "true",
+    "decision_reason": "命中 RULE-001；40>=30 满足门槛；故障原因非配置错误/非不可抗力，无免责例外；空维护结果在分页完整前提下取得，可信 → 支持补偿"
+  },
+  {
+    "task_id": "A-002",
+    "scenario_type": "漏专属合同 → 降级通用政策",
+    "input_scenario": "客户tier=VIP, plan=Enterprise_Pro, 故障时长=40分钟, 故障原因=系统侧故障",
+    "applicable_rule": "CRM查不到专属合同→按 on_not_found=PROCEED_TO_GENERAL_POLICY 降级到 RULE-002 (priority=100, 满60分钟)",
+    "injected_fault": "人为注入：专属合同返回 NOT_FOUND",
+    "fault_class": "人为注入",
+    "expected_evidence_list": {
+      "CRM_CONTRACT_DB": "NOT_FOUND",
+      "MONITORING_SYSTEM": "VERIFIED(40分钟)"
+    },
+    "four_state": "REFUTE",
+    "expected_action": "触发降级：改走通用政策 RULE-002（已自动降级，无需再补查）",
+    "final_decision": "false",
+    "decision_reason": "专属合同 NOT_FOUND → 按 obligations 降级套用 RULE-002，门槛 60 分钟；实际 40<60 → 反驳，不补偿。Demo：漏合同必须降级而非直接按VIP赔"
+  },
+  {
+    "task_id": "A-003",
+    "scenario_type": "工具超时 → 阻断转人工",
+    "input_scenario": "客户tier=VIP, plan=Enterprise_Pro, 故障时长=40分钟",
+    "applicable_rule": "RULE-001，但 CRM_CONTRACT_DB 超时，on_error_or_unchecked=BLOCK_AND_RETURN_NULL",
+    "injected_fault": "人为注入：合同库超时",
+    "fault_class": "人为注入",
+    "expected_evidence_list": {
+      "CRM_CONTRACT_DB": "TIMEOUT"
+    },
+    "four_state": "UNKNOWN(阻断)",
+    "expected_action": "硬阻断：停止推理，不得基于缺失证据下结论，转人工",
+    "final_decision": null,
+    "decision_reason": "on_error_or_unchecked=BLOCK_AND_RETURN_NULL：超时≠无证据也不=可赔，必须阻断并返回 null（转人工），绝不能猜"
+  },
+  {
+    "task_id": "A-004",
+    "scenario_type": "无权限(403) → 阻断转人工",
+    "input_scenario": "客户tier=FINANCE, plan=FINANCE_ZONE, 故障时长=20分钟",
+    "applicable_rule": "RULE-003，但 FINANCE_ZONE_DB 鉴权失败(403)，on_error_or_unchecked=BLOCK_AND_RETURN_NULL",
+    "injected_fault": "人为注入：403无权限",
+    "fault_class": "人为注入",
+    "expected_evidence_list": {
+      "FINANCE_ZONE_DB": "FORBIDDEN(403)"
+    },
+    "four_state": "UNKNOWN(阻断)",
+    "expected_action": "硬阻断：身份/资格无法核验，转人工",
+    "final_decision": null,
+    "decision_reason": "FINANCE 身份库返回403，obligations 规定 BLOCK_AND_RETURN_NULL；权限失败不可当作查无或当作满足，必须 null"
+  },
+  {
+    "task_id": "A-005",
+    "scenario_type": "正常（金融专区补偿）",
+    "input_scenario": "客户tier=FINANCE, plan=FINANCE_ZONE, 故障时长=20分钟, 故障原因=机房供电故障(非DDoS/非配置错)",
+    "applicable_rule": "RULE-003 (priority=5, 满15分钟, 例外 DDoS_ATTACK/CLIENT_CONFIG_ERROR)",
+    "injected_fault": "无（自然正例）",
+    "fault_class": "自然",
+    "expected_evidence_list": {
+      "FINANCE_ZONE_DB": "VERIFIED",
+      "MONITORING_SYSTEM": "VERIFIED"
+    },
+    "four_state": "SUPPORT",
+    "expected_action": "无需补查",
+    "final_decision": "true",
+    "decision_reason": "命中 RULE-003；20>=15 满足门槛；故障原因非黑客攻击/非配置错，无免责 → 支持补偿"
+  },
+  {
+    "task_id": "A-006",
+    "scenario_type": "正常（KA大客户极速补偿）",
+    "input_scenario": "客户tier=KA_STRATEGIC, plan=Custom_Dedicated, 故障时长=12分钟, 故障原因=系统侧故障(非客户破坏)",
+    "applicable_rule": "RULE-004 (priority=2, 满10分钟, 例外 CLIENT_MALICIOUS_ACTION)",
+    "injected_fault": "无（自然正例）",
+    "fault_class": "自然",
+    "expected_evidence_list": {
+      "KA_CLIENT_DB": "VERIFIED",
+      "MONITORING_SYSTEM": "VERIFIED",
+      "TICKET_SYSTEM": "VERIFIED"
+    },
+    "four_state": "SUPPORT",
+    "expected_action": "无需补查",
+    "final_decision": "true",
+    "decision_reason": "命中 RULE-004；12>=10 满足门槛；非客户人为主动破坏 → 支持补偿"
+  },
+  {
+    "task_id": "A-007",
+    "scenario_type": "正常（试用/沙盒免赔）",
+    "input_scenario": "客户tier=TRIAL, plan=Free_Tier, 故障时长=120分钟",
+    "applicable_rule": "RULE-005 (priority=10, 门槛999999, exceptions=ALL)",
+    "injected_fault": "无（现实自然：本就不提供SLA赔偿）",
+    "fault_class": "自然",
+    "expected_evidence_list": {
+      "TRIAL_ACCOUNTS_DB": "VERIFIED",
+      "SANDBOX_LOGS": "VERIFIED"
+    },
+    "four_state": "REFUTE",
+    "expected_action": "无需补查",
+    "final_decision": "false",
+    "decision_reason": "命中 RULE-005，免费试用/沙盒不提供SLA赔偿，门槛设为不可达且全免赔 → 反驳（不赔），无论故障多久"
+  },
+  {
+    "task_id": "A-008",
+    "scenario_type": "正常（命中免责例外 → 不赔）",
+    "input_scenario": "客户tier=VIP, plan=Enterprise_Pro, 故障时长=45分钟, 故障原因=CLIENT_CONFIG_ERROR(客户自己配错)",
+    "applicable_rule": "RULE-001，但 exceptions 含 CLIENT_CONFIG_ERROR（一票否决）",
+    "injected_fault": "无（现实自然存在的免责场景）",
+    "fault_class": "自然",
+    "expected_evidence_list": {
+      "CRM_CONTRACT_DB": "VERIFIED",
+      "MONITORING_SYSTEM": "VERIFIED(故障原因=CLIENT_CONFIG_ERROR)"
+    },
+    "four_state": "REFUTE",
+    "expected_action": "无需补查",
+    "final_decision": "false",
+    "decision_reason": "虽 45>=30 满足门槛，但 RULE-001 例外命中 CLIENT_CONFIG_ERROR，免责一票否决 → 反驳（不赔）"
+  },
+  {
+    "task_id": "A-009",
+    "scenario_type": "分页不完整 → 需补查翻页",
+    "input_scenario": "客户tier=VIP, plan=Enterprise_Pro, 故障时长=40分钟；MAINTENANCE_CALENDAR 仅返回第1页(空)且 pagination_complete=false",
+    "applicable_rule": "RULE-001 判定依赖“无计划维护例外”，但维护例外证据未翻完",
+    "injected_fault": "人为注入：分页不完整",
+    "fault_class": "人为注入",
+    "expected_evidence_list": {
+      "CRM_CONTRACT_DB": "VERIFIED",
+      "MONITORING_SYSTEM": "VERIFIED",
+      "MAINTENANCE_CALENDAR": "VERIFIED(page1为空, pagination_complete=false)"
+    },
+    "four_state": "UNKNOWN",
+    "expected_action": "补查：必须继续翻页确认是否真有维护例外；在翻完前不得判“无例外”",
+    "final_decision": null,
+    "decision_reason": "空结果≠不存在；分页未完整(pagination_complete=false)，不能用第1页空维护支持“无免责例外”，证据不足 → null，需翻页补查后重判"
+  },
+  {
+    "task_id": "A-010",
+    "scenario_type": "错版本/过期合同 → 需补查正确版本",
+    "input_scenario": "客户tier=VIP, plan=Enterprise_Pro, 故障时长=40分钟；CRM返回合同版本v2已过期(EXPIRED)，当前查询时间应适用v3",
+    "applicable_rule": "RULE-001 要求“版本正确+时间在有效期内”，命中到的是过期版本",
+    "injected_fault": "人为注入：错版本",
+    "fault_class": "人为注入",
+    "expected_evidence_list": {
+      "CRM_CONTRACT_DB": "EXPIRED(命中到 v2 过期版本, 不适用当前查询)"
+    },
+    "four_state": "UNKNOWN",
+    "expected_action": "补查：重新获取适用于当前查询时间的有效版本合同；错版本证据不可用于下结论",
+    "final_decision": null,
+    "decision_reason": "查到的是过期版本(EXPIRED)，不能支撑当前VIP专属规则；证据“查对客户/查对版本”未满足 → null，需补查正确版本"
+  },
+  {
+    "task_id": "A-011",
+    "scenario_type": "证据冲突 → CONFLICT 转人工",
+    "input_scenario": "客户tier=VIP, plan=Enterprise_Pro, 故障时长=35分钟；监控显示有效故障35分钟(满30)，但维护日历显示该时段为计划内维护窗口(免责)",
+    "applicable_rule": "RULE-001 下“应赔(超门槛)”与“计划内维护免责”两条证据相反且无法自动消解",
+    "injected_fault": "人为注入：证据冲突",
+    "fault_class": "人为注入",
+    "expected_evidence_list": {
+      "CRM_CONTRACT_DB": "VERIFIED",
+      "MONITORING_SYSTEM": "VERIFIED(35分钟)",
+      "MAINTENANCE_CALENDAR": "VERIFIED(故障时段=计划内维护窗口)"
+    },
+    "four_state": "CONFLICT",
+    "expected_action": "转人工：两条有效证据结论相反，不自动裁决",
+    "final_decision": null,
+    "decision_reason": "监控证据支持补偿(35>=30)，维护日历证据支持免责(计划内维护)，二者均有效且矛盾无法自动消解 → CONFLICT，转人工"
+  },
+  {
+    "task_id": "A-012",
+    "scenario_type": "达到调用上限 → 阻断转人工",
+    "input_scenario": "客户tier=FINANCE, plan=FINANCE_ZONE, 故障时长=18分钟；前置步骤 VERIFY_FINANCE_ZONE_IDENTITY 多次尝试未确认，达到调用上限",
+    "applicable_rule": "RULE-003 的前置依赖未完成（身份未核验）即触顶",
+    "injected_fault": "人为注入：达到调用上限",
+    "fault_class": "人为注入",
+    "expected_evidence_list": {
+      "FINANCE_ZONE_DB": "UNCHECKED(前置身份核验未完成, 达到调用上限)"
+    },
+    "four_state": "UNKNOWN(阻断)",
+    "expected_action": "硬阻断：在调用预算内未完成核验，转人工",
+    "final_decision": null,
+    "decision_reason": "关键前置证据在调用上限内未取得（未检查），on_error_or_unchecked=BLOCK_AND_RETURN_NULL；未查全不得下结论 → null，转人工"
+  }
+]
